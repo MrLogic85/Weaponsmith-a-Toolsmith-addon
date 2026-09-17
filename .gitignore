@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+
+# Packaged mod zips staged here for deploying to VintagestoryData/Mods during testing -
+# always regenerable from source, not meant to be committed
+builds/
+
+# Third-party compile-time reference DLLs (extracted from the installed Toolsmith mod,
+# not ours to redistribute - see AGENTS.md for how to regenerate)
+refs/
+
+# IDE
+.vs/
+*.user
