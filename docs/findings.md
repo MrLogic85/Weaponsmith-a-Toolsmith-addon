@@ -502,6 +502,46 @@ had already done its job.
 
 ---
 
+## 9. Non-craftable blade variants (`forlorn`, `longsword-admin`) became half-tinkered junk
+
+**Symptom:** `blade-forlorn-iron` ("Forlorn Hope estoc") and `blade-longsword-admin` ("Admin
+blade") - the two `blade-*` codes that are neither ruined-loot nor actually smithable - got
+`CollectibleBehaviorTinkeredTools` attached (per finding #5's fix) but were never built through
+`TinkeringUtility.AssembleFullTool`, so they carry no head/handle/binding attributes at all.
+Confirmed live: the admin blade's tooltip showed `49995 / 49995` durability with none of
+Toolsmith's own Sharpness/Head/Handle/Binding lines - `9999` (its vanilla
+`durabilitybytype` value) × `5` (`HeadDurabilityMult`), i.e. `GetMaxDurability`'s unconditional
+multiplier applied with no real tinkering data behind it.
+
+**Root cause:** `blade-*-ruined` (gladius/arming/claymore/sabre) are excluded from tinkering
+entirely by Toolsmith's own base `PartBlacklist` (`partblacklist-base.json` already contains the
+bare word `"ruined"`, matched as `.*(...|ruined|...).*` against the full item code) - those are
+fine, untouched, plain vanilla items. `forlorn`/`longsword-admin` contain no blacklisted
+substring, so they pass Toolsmith's classification loop and get the tinkering behavior - but
+since no grid recipe anywhere produces either code, `ItemStackExtensions.ResetNullHead` (called
+from `GetHeldItemInfo` the first time the item's stats are inspected outside a
+Dummy/Creative/Trader inventory) can't find a matching entry in
+`RecipeRegisterModSystem.TinkerToolGridRecipes`, logs an error, assigns a placeholder `game:candle`
+head at 1 durability, and adds the item's code to `ToolsmithModSystem.IgnoreCodes` (which then
+skips the rest of Toolsmith's own per-item logic, including the tooltip lines - but not
+`GetMaxDurability`, which has no such check).
+
+**Fix:** `ToolsmithWeapons/assets/toolsmithweapons/config/toolsmith/regex/partblacklist/partblacklist-weapons.json`
+- content-only, no code. Adds `"blade-forlorn-iron"` and `"blade-longsword-admin"` (full item
+paths, not bare words like `"forlorn"`/`"admin"`, to avoid the same kind of cross-mod substring
+collision finding #4 already ran into) to Toolsmith's aggregated `PartBlacklist`, using the exact
+extension point Toolsmith itself ships multiple files for
+(`partblacklist-base.json`/`-admintools.json`/`-armory.json` in its own zip). Excludes both codes
+from `CollectibleBehaviorTinkeredTools` entirely, the same way `-ruined` variants already are -
+no Harmony patch changes needed, since the blacklist check is independent of
+`WeaponNotAToolHeadPatch`'s `IsToolHead` override in Toolsmith's classification condition
+(`IsTinkerableTool && !IsToolHead && !IsOnBlacklist`).
+
+Status: **fixed (`1.0.1`), not yet playtested** (the admin-blade tooltip evidence above is from
+before the fix).
+
+---
+
 ## Tooling notes
 
 - Decompiling: `ilspycmd -t <Namespace.Type> <path\to\Assembly.dll>` for a single type,
