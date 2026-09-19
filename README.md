@@ -58,11 +58,15 @@ minimum-version constraint, and every `Fixes/` patch targets specific internal m
 verified to exist in the exact version compiled against. Leaving it pointing at an older version
 would let the mod load against a Toolsmith release we never actually tested it with.
 
-The same logic applies to `"game"` in that same `dependencies` block: several `Fixes/` patches
-target vanilla engine internals decompiled from a specific installed game version (check
-`assets/version-*.txt` in the game install directory), not just the public API surface. If you
-re-verify or re-decompile against a newer game release, bump `"game"` to match that version too -
-don't leave it at whatever old floor happens to still build.
+`"game"` is different: it is also a minimum-version constraint (the engine checks `provided >=
+requested` as SemVer, see `ModLoader.SatisfiesVersion`), but it should be the **lowest game
+version we have actually checked**, not the newest. A too-high value hard-blocks loading on older
+games ("Requires dependency game v1.22.7" - a user on 1.22.3 hit exactly that with 1.0.1). The
+game-side classes our patches touch (`ItemSpear`, `EntityProjectile`, `EntityProjectileBase`, and
+the echo in `ServerSystemInventory.HandleHandInteraction`) were diffed across 1.22.0/1.22.3/
+1.22.6/1.22.7 and behave the same, and Toolsmith itself only requires `game` 1.22.0, so it is set
+to `1.22.0`. Only raise it if a future game release changes one of those and we need the newer
+behaviour.
 
 ## Packaging and deploying for a test run
 

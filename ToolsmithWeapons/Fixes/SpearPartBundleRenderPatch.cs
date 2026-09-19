@@ -31,8 +31,11 @@ namespace ToolsmithWeapons.Fixes {
         public static void Postfix(ItemStack tool, ItemStack head) {
             try {
                 var shape = head?.Item?.Shape?.Base;
+                bool generic = tool != null && tool.HasBundleHasGenericParts();
+                // Diagnostic (finding #11): a bundle is only made by hand, so this is low-volume.
+                ToolsmithWeaponsModSystem.Logger?.Notification($"[ToolsmithWeapons] Part bundle built: head={head?.Collectible?.Code} shape={shape} genericParts={generic}");
                 if (tool == null || shape == null || shape.Domain != "game"
-                    || !shape.Path.StartsWith(VanillaSpearShapePrefix) || !tool.HasBundleHasGenericParts()) {
+                    || !shape.Path.StartsWith(VanillaSpearShapePrefix) || !generic) {
                     return;
                 }
 
