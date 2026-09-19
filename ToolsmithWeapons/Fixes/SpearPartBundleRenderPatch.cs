@@ -5,7 +5,7 @@ using Vintagestory.API.Common;
 
 namespace ToolsmithWeapons.Fixes {
 
-    // Cosmetic only (see docs/findings.md, finding #11). Toolsmith renders the intermediate
+    // Cosmetic only (see docs/findings.md, finding #11). Covers spears and maces. Toolsmith renders the intermediate
     // "Tool Head and Handle" bundle (toolsmith:tinkertoolparts) by combining the head item's own
     // shape with a handle shape looked up by tool type - a type it derives from a
     // ".../parts/<tooltype>/..." segment in the head's shape path. Vanilla's spearhead shape is
@@ -34,7 +34,9 @@ namespace ToolsmithWeapons.Fixes {
 
     [HarmonyPatch(typeof(MultiPartRenderingHelpers), nameof(MultiPartRenderingHelpers.BuildToolRenderFromHeadAndHandle))]
     public static class SpearPartBundleRenderPatch {
-        private const string VanillaSpearShapePrefix = "item/tool/spear/";
+        // Vanilla Armory ships head-only shapes for both; vanilla has the whole-weapon shape of the
+        // same name in the same folder (maces: game:.../club/flanged for flangedhead etc.).
+        private static readonly string[] WeaponShapeFolders = { "shapes/item/tool/spear/", "shapes/item/tool/club/" };
         private const string Transparent = "game:block/transparent";
 
         // "item/x" and "shapes/item/x" are the same asset; the engine adds the prefix if missing.
@@ -52,7 +54,7 @@ namespace ToolsmithWeapons.Fixes {
                 if (tool == null || shape == null || !generic) return;
 
                 string shapePath = WithShapesPrefix(shape.Path);
-                if (!shapePath.StartsWith("shapes/" + VanillaSpearShapePrefix)) return;
+                if (!Array.Exists(WeaponShapeFolders, folder => shapePath.StartsWith(folder))) return;
 
                 // Vanilla heads already render acceptably through Toolsmith's own path (playtested
                 // 1.1.2 - the earlier NRE meant this patch never touched them); leave them alone.

@@ -603,7 +603,13 @@ texture tree; `handle`/`wood` kept). Vanilla heads are left alone. The `1.1.1` d
 the same coordinate frame (bounding boxes suggest yes), and how the bundle's GUI/hand transforms
 (tuned for axes) look with a full-length spear.
 
-Status: **built (`1.1.3`), not playtested.**
+**Playtest of 1.1.3:** vanilla copper spear, VA ranseur and VA boar all looked fine (ranseur
+best); the VA spiked mace was still the dark clump - the same head-only-shape + `shapes/` prefix
+situation applies to VA's club heads (`vanillaarmory:shapes/item/tool/club/<name>head`, full
+shapes at `game:shapes/item/tool/club/<name>`, same `blackbronze`/`handle` texture keys).
+`1.1.4` extends the postfix to the `item/tool/club/` folder too.
+
+Status: **`1.1.4` built, mace not yet re-tested.**
 
 ---
 
