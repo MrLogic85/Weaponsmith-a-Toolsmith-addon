@@ -542,6 +542,37 @@ before the fix).
 
 ---
 
+## 10. Vanilla Armory maces (`club-*`) re-enabled, relic variants blacklisted
+
+Picks up finding #7. Re-inspected Vanilla Armory 2.4.7 (current release for game 1.22.x):
+
+- Its mace types (`club-flanged|morningstar|spiked|warhammer-<metal>`) are crafted from a real
+  smithed head (`flangedhead-*` etc. - contains `head`, so Toolsmith's recipe scan picks them up)
+  plus a `rod-*`/`stick` handle, via `recipes/grid/maces.json`. Gold/silver "ornate" variants use
+  a 3-ingredient pattern (steel head + plate + handle); the head is still detected, but the plate
+  is unknown territory - **check in game**.
+- Vanilla's own `club.json` only defines `flanged/morningstar/spiked/warhammer` as `-ruined`
+  (already excluded by Toolsmith's `ruined` blacklist word), so the *type-specific* entries
+  `club-flanged-`, `club-morningstar-`, `club-spiked-`, `club-warhammer-` are safe without any
+  domain check - they never match `club-generic-wood` / `club-scrap*`, and nothing changes
+  without Vanilla Armory installed. (TinkerableTools is merged as `@.*:(a|b|...)`, i.e. entries
+  match at the start of the path after the domain colon - hence the `club-` prefix style.)
+- `club-*` added to `bluntheadedtools-weapons.json` (new file) so maces get
+  `CollectibleBehaviorToolBlunt` (no sharpening) like Toolsmith's own hammers.
+- **New, same class as finding #9:** Vanilla Armory ships `*-relic0` ... `*-relic5` variants of
+  blade/spear/club (`assets/vanillaarmory/itemtypes/tool/relic *`). No recipe produces them, so
+  with `blade-`/`spear-` already tinkerable they'd become half-tinkered junk. Added `-relic[0-5]`
+  to `partblacklist-weapons.json` (safe with `WeaponNotBlacklistedPatch`, which re-runs the
+  blacklist on the path with the `vanillaarmory:` domain stripped).
+- `WeaponNotAToolHeadPatch` needs no `:club-` entry: `club-*` codes contain neither `head` nor
+  `blade`.
+
+Status: **built and packaged (`1.1.0`), not playtested.** Playtest with Vanilla Armory installed:
+craft a mace from head + handle, check it shows Head/Handle/Binding and no sharpness bar, check a
+relic item (creative) has no Toolsmith behavior/tooltip junk, check gold/silver ornate maces.
+
+---
+
 ## Tooling notes
 
 - Decompiling: `ilspycmd -t <Namespace.Type> <path\to\Assembly.dll>` for a single type,

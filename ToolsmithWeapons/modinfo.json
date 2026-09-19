@@ -2,7 +2,7 @@
   "type": "code",
   "modid": "toolsmithweapons",
   "name": "Weaponsmith a Toolsmith addon",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "This mod adds vanilla weapons to use the same tikering features as tools have in Toolsmith. This mod requires Toolsmith to work since all functionality actually lives in that mod.",
   "authors": ["MetaCalf"],
   "dependencies": {
