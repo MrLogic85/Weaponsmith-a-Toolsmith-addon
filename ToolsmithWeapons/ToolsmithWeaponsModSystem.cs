@@ -8,10 +8,12 @@ namespace ToolsmithWeapons {
 
         // For patches that have no world/api handle of their own to log through.
         internal static ILogger Logger;
+        internal static ICoreAPI Api;
 
         public override void Start(ICoreAPI api) {
             base.Start(api);
             Logger = api.Logger;
+            Api = api;
 
             harmony = new Harmony(HarmonyId);
             // Start() runs once per side (client + server) in this Universal mod, both in the

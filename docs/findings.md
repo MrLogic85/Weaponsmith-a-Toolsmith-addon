@@ -573,34 +573,37 @@ relic item (creative) has no Toolsmith behavior/tooltip junk, check gold/silver 
 
 ---
 
-## 11. Head+handle bundle renders as a dark clump for vanilla spears (cosmetic)
+## 11. Head+handle bundle rendered as a dark clump for Vanilla Armory spears (cosmetic)
 
 **Symptom:** the intermediate "Tool Head and Handle" item (`toolsmith:tinkertoolparts`, made by
-holding right-click with head + handle) looked like a dark mass in hotbar/hand. The finished spear
-is fine.
+holding right-click with head + handle) looked like a dark mass in hotbar/hand when made from a
+Vanilla Armory head (boar). The finished spear is fine, and so is the bundle from a *vanilla*
+`spearhead-*` (playtested).
 
-**Root cause (Toolsmith source):** `MultiPartRenderingHelpers.BuildToolRenderFromHeadAndHandle`
-uses the head item's own shape for the head part and derives the tool type for the handle shape
-from a `.../parts/<tooltype>/...` segment in that path. Vanilla's spearhead shape is
-`item/tool/spear/metal-<material>` - the whole spear model, with `handle`/`string` textures made
-transparent by the head item - so there is no tool type, Toolsmith flags the bundle
-`bundleHasGenericParts` and adds a generic stick handle at the origin over that full-length model.
-`TinkeringUtility` skips the render tree for generic bundles when the binding step finishes the
-tool, which is why the finished spear uses the item's own shape and looks right.
+**First attempt (1.1.1/1.1.2) was aimed wrong:** assumed vanilla heads were the problem (their
+shape is the whole spear model, no `.../parts/<tooltype>/...` segment, so Toolsmith flags the bundle
+`bundleHasGenericParts` and adds a generic handle) - that is true but renders acceptably. The
+postfix also threw an NRE on every bundle (visible via the diagnostic log line): it read
+`head.Item.Textures`, which is evidently not populated on the server, where the bundle is built.
 
-**Fix (`1.1.1`, deliberately small):** `Fixes/SpearPartBundleRenderPatch.cs`, a postfix on
-`BuildToolRenderFromHeadAndHandle`. Only for heads whose shape is in the `game` domain under
-`item/tool/spear/` and only for generic bundles: the handle part gets the head's own shape with
-every texture key the head item defines (except `handle`) set to `game:block/transparent`, leaving
-just the shaft, correctly aligned since it is the same model. Vanilla Armory's heads
-(`boarhead` etc.) are head-only shapes in their own domain and are left as Toolsmith renders them.
+**Likely root cause for VA (from Toolsmith's code, not confirmed in game):** VA writes shape bases
+with the `shapes/` prefix (`vanillaarmory:shapes/item/tool/spear/boarhead`);
+`BuildToolRenderFromHeadAndHandle` prepends `shapes/` again, the asset isn't found, `GenMesh`
+returns null and the whole bundle falls back to `tinkertoolparts`' own shape (scrap weapon kit).
 
-**Unknown until playtested:** the bundle uses `tinkertoolparts`' GUI/hand transforms, which are
-tuned for axes - the full-length spear model may sit tilted or oversized in hotbar/hand. If it still
-looks bad, options are to accept it or ship our own transforms; not pursued (finding #11 is about
-not turning a cosmetic issue into a big change).
+**Fix (`1.1.3`):** `Fixes/SpearPartBundleRenderPatch.cs`, postfix on
+`BuildToolRenderFromHeadAndHandle`, only for generic bundles with a non-`game` head whose shape is
+`.../item/tool/spear/<name>head`: normalise the head part's shape path, and use vanilla's
+whole-spear `game:shapes/item/tool/spear/<name>` (exists for boar/fork/ranseur/voulge) as the
+handle part with every texture the head shows made transparent (keys read from the head part's
+texture tree; `handle`/`wood` kept). Vanilla heads are left alone. The `1.1.1` diagnostic log line
+("Part bundle built: head=... shape=... genericParts=...") stays.
 
-Status: **built (`1.1.1`), not playtested.**
+**Unknown until playtested:** whether VA's head-only shape and vanilla's whole-spear shape are in
+the same coordinate frame (bounding boxes suggest yes), and how the bundle's GUI/hand transforms
+(tuned for axes) look with a full-length spear.
+
+Status: **built (`1.1.3`), not playtested.**
 
 ---
 
