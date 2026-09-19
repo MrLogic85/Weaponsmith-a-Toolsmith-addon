@@ -573,6 +573,37 @@ relic item (creative) has no Toolsmith behavior/tooltip junk, check gold/silver 
 
 ---
 
+## 11. Head+handle bundle renders as a dark clump for vanilla spears (cosmetic)
+
+**Symptom:** the intermediate "Tool Head and Handle" item (`toolsmith:tinkertoolparts`, made by
+holding right-click with head + handle) looked like a dark mass in hotbar/hand. The finished spear
+is fine.
+
+**Root cause (Toolsmith source):** `MultiPartRenderingHelpers.BuildToolRenderFromHeadAndHandle`
+uses the head item's own shape for the head part and derives the tool type for the handle shape
+from a `.../parts/<tooltype>/...` segment in that path. Vanilla's spearhead shape is
+`item/tool/spear/metal-<material>` - the whole spear model, with `handle`/`string` textures made
+transparent by the head item - so there is no tool type, Toolsmith flags the bundle
+`bundleHasGenericParts` and adds a generic stick handle at the origin over that full-length model.
+`TinkeringUtility` skips the render tree for generic bundles when the binding step finishes the
+tool, which is why the finished spear uses the item's own shape and looks right.
+
+**Fix (`1.1.1`, deliberately small):** `Fixes/SpearPartBundleRenderPatch.cs`, a postfix on
+`BuildToolRenderFromHeadAndHandle`. Only for heads whose shape is in the `game` domain under
+`item/tool/spear/` and only for generic bundles: the handle part gets the head's own shape with
+every texture key the head item defines (except `handle`) set to `game:block/transparent`, leaving
+just the shaft, correctly aligned since it is the same model. Vanilla Armory's heads
+(`boarhead` etc.) are head-only shapes in their own domain and are left as Toolsmith renders them.
+
+**Unknown until playtested:** the bundle uses `tinkertoolparts`' GUI/hand transforms, which are
+tuned for axes - the full-length spear model may sit tilted or oversized in hotbar/hand. If it still
+looks bad, options are to accept it or ship our own transforms; not pursued (finding #11 is about
+not turning a cosmetic issue into a big change).
+
+Status: **built (`1.1.1`), not playtested.**
+
+---
+
 ## Tooling notes
 
 - Decompiling: `ilspycmd -t <Namespace.Type> <path\to\Assembly.dll>` for a single type,
