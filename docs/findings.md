@@ -613,6 +613,65 @@ Status: **`1.1.4` built, mace not yet re-tested.**
 
 ---
 
+## 12. Finished Vanilla Armory knives/axes rendered as Toolsmith's generic knife/axe (cosmetic)
+
+**Reported** on the mod page (comment 243361, 2026-10-02): VA's `knife-baselard|dagger|khanjar|
+stiletto-*` and `axe-bardiche|battle|bearded|double-*` looked like Toolsmith's own copper
+knife/axe once finished. Reproduced 2026-10-12 (baselard): bundle log line showed
+`shape=vanillaarmory:shapes/item/tool/blade/baselardhead genericParts=True`, finished weapon
+was the generic knife.
+
+**Root cause (Toolsmith's code):** these items only become tinkerable at all because of
+`WeaponNotBlacklistedPatch` (finding #7); `knife`/`axe` are in Toolsmith's base list, so they get
+`ModularPartRenderingFromAttributes`. VA head shapes have no `.../parts/<tooltype>/...` segment,
+so the bundle is generic and the finished tool gets no multi-part render tree (both the in-hand
+path and `BuildToolRenderFromAllSeparateParts`, which returns early on an unknown tool type).
+Without a tree, `GenMesh` calls `GenFallbackGenericPartMesh` using the item code's **first part**
+- `knife`/`axe` - and Toolsmith ships `shapes/item/parts/knife|axe`, so it builds its generic
+knife/axe instead of using the item's own shape. VA spears/swords/maces were spared only because
+there is no `parts/spear|blade|club`.
+
+**Fix (`1.1.5`):** `Fixes/VanillaArmoryFinishedWeaponRenderPatch.cs`, prefix on
+`GenFallbackGenericPartMesh` returning `null` for `vanillaarmory:` items; Toolsmith's `GenMesh`
+then uses the item's own shape (`game:item/tool/knife/baselard`, VA's ornate shapes, ...).
+
+**Playtest of 1.1.5 (2026-10-12):** finished copper baselard/bardiche and gold baselard render
+as VA's own models. Durability shown (~19000 for gold baselard) is just VA's 3816 (same as steel)
+× Toolsmith's `HeadDurabilityMult` 5 - normal Toolsmith behavior. The head+handle bundle for VA
+knife/axe heads still looked wrong (same double-`shapes/` situation as finding #11).
+
+**Bundle fix (`1.1.6`):** `SpearPartBundleRenderPatch` extended to `axe/` and `blade/` head
+folders. Knife heads live in VA's `blade/` folder but the whole knife is
+`game:item/tool/knife/<name>`, so the `blade/` entry looks in `blade/` then `knife/` (this also
+covers VA sword heads: `game:item/tool/blade/arming|claymore|gladius|sabre` exist). Every VA
+knife/axe/sword head overrides only its metal texture key, so the transparent-metal trick from #11
+applies unchanged. Playtested: bundles for VA baselard/bardiche/sword look right.
+
+**Steel heads assembled into gold weapons (confirmed in game, 1.1.6):** `RecipeRegisterModSystem`
+maps each head to the output of the *first* grid recipe that uses it (`TinkerToolGridRecipes`,
+head code -> one tool, `ContainsKey` guard). VA lists its ornate recipes (steel head + gold/silver
+plate + stick) before the plain ones for most types, so `baselardhead-steel` -> `knife-baselard-gold`:
+a Toolsmith-assembled steel baselard came out gold. Because the map is one tool per head, the
+steel *and* silver items then had no entry at all, i.e. `ResetNullHead` would give them finding
+#9's candle placeholder. VA's own ornate recipe (steel head + plate + stick) still works in the
+grid; with a Toolsmith handle instead of the stick it doesn't.
+
+**Fix (`1.1.7`, content only):** all 40 VA ornate codes
+(`knife-baselard|dagger|khanjar|stiletto`, `axe-bardiche|battle|bearded|double`,
+`blade-arming|claymore|gladius|sabre`, `club-flanged|morningstar|spiked|warhammer`,
+`spear-boar|fork|ranseur|voulge`, each `-gold`/`-silver`) added to `partblacklist-weapons.json`.
+They never enter `TinkerableToolsList`, so Toolsmith's recipe scan skips the ornate recipes and
+each steel head maps to its steel weapon again; the ornate weapons stay plain VA items, made with
+VA's plate recipe. Written as one full code per entry on purpose: Toolsmith's
+`PrepareAndSplitConfigStrings`/`MergeAndSetConfigStrings` split the merged regex on `|` and trim
+at `(`/`)` at server start, so an entry containing its own `(a|b)` group could come out
+unbalanced. Playtested: a Toolsmith-assembled VA steel baselard comes out steel, a gold baselard
+made with VA's recipe has no Toolsmith durability/parts, no candle placeholders in the log.
+
+Status: **`1.1.5`-`1.1.7` playtested, all three parts fixed.**
+
+---
+
 ## Tooling notes
 
 - Decompiling: `ilspycmd -t <Namespace.Type> <path\to\Assembly.dll>` for a single type,

@@ -5,7 +5,8 @@ using Vintagestory.API.Common;
 
 namespace ToolsmithWeapons.Fixes {
 
-    // Cosmetic only (see docs/findings.md, finding #11). Covers spears and maces. Toolsmith renders the intermediate
+    // Cosmetic only (see docs/findings.md, findings #11 and #12). Covers spears, maces, axes,
+    // knives and swords. Toolsmith renders the intermediate
     // "Tool Head and Handle" bundle (toolsmith:tinkertoolparts) by combining the head item's own
     // shape with a handle shape looked up by tool type - a type it derives from a
     // ".../parts/<tooltype>/..." segment in the head's shape path. Vanilla's spearhead shape is
@@ -17,8 +18,8 @@ namespace ToolsmithWeapons.Fixes {
     // tool, so the finished spear uses the item's own vanilla shape.
     //
     // Fix (Vanilla Armory heads only - vanilla heads render fine, see below): the head part's shape
-    // path is normalised, and the handle part becomes vanilla's whole-spear shape of the same name
-    // (game:.../spear/boar for boarhead, if it exists; VA's head shapes are head-only, in the same
+    // path is normalised, and the handle part becomes vanilla's whole-weapon shape of the same name
+    // (game:.../spear/boar for boarhead, game:.../knife/baselard for blade/baselardhead, if it exists; VA's head shapes are head-only, in the same
     // coordinate frame) with every texture the head shows made transparent, leaving just the shaft
     // (and no string, the binding isn't there yet). Any other head is left exactly as Toolsmith
     // renders it.
@@ -34,9 +35,16 @@ namespace ToolsmithWeapons.Fixes {
 
     [HarmonyPatch(typeof(MultiPartRenderingHelpers), nameof(MultiPartRenderingHelpers.BuildToolRenderFromHeadAndHandle))]
     public static class SpearPartBundleRenderPatch {
-        // Vanilla Armory ships head-only shapes for both; vanilla has the whole-weapon shape of the
-        // same name in the same folder (maces: game:.../club/flanged for flangedhead etc.).
-        private static readonly string[] WeaponShapeFolders = { "shapes/item/tool/spear/", "shapes/item/tool/club/" };
+        // Vanilla Armory ships head-only shapes; vanilla has the whole-weapon shape of the same name
+        // (maces: game:.../club/flanged for flangedhead etc.). Usually in the same folder, but VA
+        // keeps its knife heads under blade/ (blade/baselardhead) while the whole knife is
+        // game:.../knife/baselard - so each head folder lists the folders to look in, in order.
+        private static readonly (string Folder, string[] FullShapeFolders)[] WeaponShapeFolders = {
+            ("shapes/item/tool/spear/", new[] { "shapes/item/tool/spear/" }),
+            ("shapes/item/tool/club/", new[] { "shapes/item/tool/club/" }),
+            ("shapes/item/tool/axe/", new[] { "shapes/item/tool/axe/" }),
+            ("shapes/item/tool/blade/", new[] { "shapes/item/tool/blade/", "shapes/item/tool/knife/" }),
+        };
         private const string Transparent = "game:block/transparent";
 
         // "item/x" and "shapes/item/x" are the same asset; the engine adds the prefix if missing.
@@ -54,16 +62,24 @@ namespace ToolsmithWeapons.Fixes {
                 if (tool == null || shape == null || !generic) return;
 
                 string shapePath = WithShapesPrefix(shape.Path);
-                if (!Array.Exists(WeaponShapeFolders, folder => shapePath.StartsWith(folder))) return;
+                int match = Array.FindIndex(WeaponShapeFolders, w => shapePath.StartsWith(w.Folder));
+                if (match < 0) return;
 
                 // Vanilla heads already render acceptably through Toolsmith's own path (playtested
                 // 1.1.2 - the earlier NRE meant this patch never touched them); leave them alone.
                 if (shape.Domain == "game" || !shapePath.EndsWith("head")) return;
 
                 string headShape = shape.Domain + ":" + shapePath;
-                var full = new AssetLocation("game", shapePath.Substring(0, shapePath.Length - "head".Length));
-                if (ToolsmithWeaponsModSystem.Api?.Assets?.Exists(new AssetLocation(full.Domain, full.Path + ".json")) != true) return;
-                string handleShape = full.ToString();
+                var (folder, fullShapeFolders) = WeaponShapeFolders[match];
+                string name = shapePath.Substring(folder.Length, shapePath.Length - folder.Length - "head".Length);
+                string handleShape = null;
+                foreach (string fullFolder in fullShapeFolders) {
+                    if (ToolsmithWeaponsModSystem.Api?.Assets?.Exists(new AssetLocation("game", fullFolder + name + ".json")) == true) {
+                        handleShape = "game:" + fullFolder + name;
+                        break;
+                    }
+                }
+                if (handleShape == null) return;
 
                 var multiPart = tool.GetMultiPartRenderTree();
                 var headPart = multiPart?.GetPartAndTransformRenderTree("head");
